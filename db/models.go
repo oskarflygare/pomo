@@ -31,6 +31,7 @@ type AllTimeStats struct {
 type DailyStat struct {
 	Date         string        `db:"day"`
 	WorkDuration time.Duration `db:"work_duration"`
+	WorkSessions int           `db:"work_sessions"`
 }
 
 type StreakStats struct {
