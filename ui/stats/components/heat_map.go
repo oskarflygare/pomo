@@ -18,7 +18,7 @@ const (
 	horizontalSeparator = "│"
 
 	labelWidth        = 3
-	weekDayLabelWidth = labelWidth + 1 + 1 + cellWidth // including separator, space, and cellWidth*space "Sun │  "
+	weekDayLabelWidth = labelWidth + 1 + 1 + cellWidth // including separator, space, and cellWidth*space "Mon │  "
 )
 
 var (
@@ -43,6 +43,10 @@ type HeatMap struct{}
 
 func NewHeatMap() HeatMap {
 	return HeatMap{}
+}
+
+func mondayFirstWeekday(day time.Weekday) int {
+	return (int(day) + 6) % 7
 }
 
 func (h *HeatMap) View(stats []db.DailyStat) string {
@@ -129,7 +133,7 @@ func (h *HeatMap) makeMonthGrid(year int, month time.Month, today time.Time, sta
 	lastDay := firstDay.AddDate(0, 1, -1) // last day of month
 
 	// calculate number of weeks this month spans
-	startWeekday := int(firstDay.Weekday()) // 0=Sun, 6=Sat
+	startWeekday := mondayFirstWeekday(firstDay.Weekday()) // 0=Mon, 6=Sun
 	daysInMonth := lastDay.Day()
 	numWeeks := (startWeekday + daysInMonth + 6) / 7
 
@@ -151,7 +155,7 @@ func (h *HeatMap) makeMonthGrid(year int, month time.Month, today time.Time, sta
 			continue
 		}
 
-		weekday := int(date.Weekday())
+		weekday := mondayFirstWeekday(date.Weekday())
 		week := (startWeekday + day - 1) / 7
 
 		key := date.Format(db.DateFormat)
@@ -205,12 +209,12 @@ func (h *HeatMap) buildSeparator(grids []monthGrid) string {
 }
 
 func (h *HeatMap) buildWeekDayLabels() string {
-	days := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+	days := []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
 	builder := strings.Builder{}
 
-	for _, day := range days {
+	for i, day := range days {
 		builder.WriteString(day + " " + horizontalSeparator + strings.Repeat(" ", cellWidth))
-		if day != "Sat" {
+		if i < len(days)-1 {
 			builder.WriteString("\n")
 		}
 	}
