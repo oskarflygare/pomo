@@ -238,6 +238,7 @@ work:
 | `Space`        | Pause/Resume timer        |
 | `←` / `h`      | Reset to initial duration |
 | `s`            | Skip to next session      |
+| `t`            | Show/hide timer text      |
 | `q` / `Ctrl+C` | Quit                      |
 
 > Skip button skips directly to the next session, bypassing any prompts
