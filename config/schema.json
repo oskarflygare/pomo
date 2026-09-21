@@ -117,7 +117,7 @@
         "urgent": {
           "type": "boolean",
           "description": "Mark notification as urgent",
-          "default": false
+          "default": true
         },
         "title": {
           "type": "string",

@@ -75,7 +75,7 @@ var (
 			"title":    "work session",
 			"notification": map[string]any{
 				"enabled": true,
-				"urgent":  false,
+				"urgent":  true,
 				"title":   "work finished 🎉",
 				"message": "time to take a break!",
 			},
@@ -85,7 +85,7 @@ var (
 			"title":    "break session",
 			"notification": map[string]any{
 				"enabled": true,
-				"urgent":  false,
+				"urgent":  true,
 				"title":   "break over 😴",
 				"message": "back to work!",
 			},
