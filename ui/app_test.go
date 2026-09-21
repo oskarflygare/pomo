@@ -77,7 +77,7 @@ func TestMiniatureLayoutLeavesConfirmationAndWaitingStatesUnchanged(t *testing.T
 func TestMiniatureLayoutPersistsAcrossSessionTransitions(t *testing.T) {
 	originalConfig := config.C
 	config.C = config.Config{
-		Work:  config.Task{Title: "work", Duration: 25 * time.Minute},
+		Work:  config.Task{Title: "work", Duration: 2 * time.Hour},
 		Break: config.Task{Title: "break", Duration: 5 * time.Minute},
 	}
 	t.Cleanup(func() { config.C = originalConfig })
@@ -86,51 +86,58 @@ func TestMiniatureLayoutPersistsAcrossSessionTransitions(t *testing.T) {
 	m.currentTaskType = config.WorkTask
 	m.currentTask = config.C.Work
 	m.longBreak = config.LongBreak{Enabled: true, After: 4, Duration: 15 * time.Minute}
+	m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
 
 	m.nextSession()
-	assert.True(t, m.miniature)
-	assert.False(t, m.progressBar.ShowPercentage)
-	assert.Equal(t, "break", m.currentTask.Title)
-
+	assertMiniatureState(t, m, "break")
 	m.nextSession()
-	assert.True(t, m.miniature)
-	assert.False(t, m.progressBar.ShowPercentage)
-	assert.Equal(t, "work", m.currentTask.Title)
+	assertMiniatureState(t, m, "work")
 
 	m.cyclePosition = 1
 	m.longBreak = config.LongBreak{Enabled: true, After: 1, Duration: 15 * time.Minute}
 	m.nextSession()
-	assert.True(t, m.miniature)
-	assert.False(t, m.progressBar.ShowPercentage)
-	assert.Equal(t, "long break", m.currentTask.Title)
-
+	assertMiniatureState(t, m, "long break")
 	m.shortSession()
-	assert.True(t, m.miniature)
-	assert.False(t, m.progressBar.ShowPercentage)
-	assert.Equal(t, "short break", m.currentTask.Title)
+	assertMiniatureState(t, m, "short break")
 }
 
 func TestMiniatureLayoutRecalculatesProgressWidth(t *testing.T) {
-	m := miniatureTestModel(time.Minute)
-	m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	t.Run("key handlers", func(t *testing.T) {
+		m := miniatureTestModel(59 * time.Minute)
+		m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
 
-	assert.Equal(t, 66, m.progressBar.Width)
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+		assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
 
-	m.duration = 100 * time.Hour
-	m.elapsed = 0
-	m.updateProgressBar()
-	assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
+		m.currentTask.Duration = 2 * time.Hour
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+		assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
+	})
 
-	m.handleTimerTick(timer.TickMsg{})
-	assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
+	t.Run("timer tick", func(t *testing.T) {
+		m := miniatureTestModel(time.Hour)
+		m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
 
-	m.handleWindowResize(tea.WindowSizeMsg{Width: 5, Height: 24})
-	assert.Equal(t, 0, m.progressBar.Width)
+		m.handleTimerTick(timer.TickMsg{})
+		assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
+	})
 
-	m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
-	assert.Equal(t, 0, m.progressBar.Width)
+	t.Run("narrow terminal", func(t *testing.T) {
+		m := miniatureTestModel(time.Minute)
+		m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+		m.handleWindowResize(tea.WindowSizeMsg{Width: 5, Height: 24})
+
+		assert.Equal(t, 0, m.progressBar.Width)
+		assert.True(t, containsSameLine(m.View(), "01:00"))
+		assert.NotContains(t, m.View(), "░")
+
+		m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+		assert.Equal(t, 0, m.progressBar.Width)
+	})
 }
 
 func TestMiniatureLayoutRecalculatesProgressWidthForEachASCIIFont(t *testing.T) {
@@ -143,11 +150,10 @@ func TestMiniatureLayoutRecalculatesProgressWidthForEachASCIIFont(t *testing.T) 
 			m.progressBar.ShowPercentage = false
 			m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-			m.progressBar.Width = 0
 			m.handleTimerTick(timer.TickMsg{})
-
+			content := m.buildMiniatureContent()
 			assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
-			assert.Contains(t, m.buildMiniatureContent(), m.progressBar.View())
+			assert.InDelta(t, lipgloss.Height(m.buildTimeLeft())/2, lineContaining(content, "░"), 1)
 		})
 	}
 }
@@ -169,6 +175,24 @@ func miniatureTestModel(duration time.Duration) Model {
 func miniatureProgressWidth(m Model) int {
 	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
 	return max(0, fullBudget-lipgloss.Width(m.buildTimeLeft())-lipgloss.Width(miniatureGap))
+}
+
+func assertMiniatureState(t *testing.T, m Model, title string) {
+	t.Helper()
+	assert.True(t, m.miniature)
+	assert.False(t, m.progressBar.ShowPercentage)
+	assert.Equal(t, title, m.currentTask.Title)
+	assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
+}
+
+func lineContaining(content, substring string) int {
+	for i, line := range strings.Split(content, "\n") {
+		if strings.Contains(line, substring) {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func sessionStateName(state SessionState) string {
