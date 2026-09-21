@@ -43,7 +43,7 @@ type BarChart struct {
 func NewBarChart(height int) BarChart {
 	return BarChart{
 		chartLayout: chartLayout{
-			barHeight: height - 1 - 1, // leave space for x-axis and labels
+			barHeight: height - 1 - 2, // leave space for x-axis, weekdays, and session counts
 		},
 	}
 }
@@ -84,7 +84,7 @@ func (b *BarChart) View(stats []db.DailyStat) string {
 	// fallback for empty stats
 	if maxDuration == 0 {
 		maxDuration = time.Hour
-		scale = time.Minute * 10
+		scale = calculateScale(maxDuration, targetTicks)
 	}
 
 	b.chartLayout = b.calculateLayout(maxDuration, scale)
@@ -150,19 +150,22 @@ func (b *BarChart) buildXAxis() string {
 }
 
 func (b *BarChart) buildLabels(stats []db.DailyStat) string {
-	var labels strings.Builder
+	var days strings.Builder
+	var sessions strings.Builder
 
 	for _, stat := range stats {
-		day := getDayLabel(stat.Date)
-		labels.WriteString(day)
-		labels.WriteString(spacer)
+		days.WriteString(getDayLabel(stat.Date))
+		days.WriteString(spacer)
+
+		sessions.WriteString(fmt.Sprintf("%*dx", barThickness-1, stat.WorkSessions))
+		sessions.WriteString(spacer)
 	}
 
 	// yaxis width + spacing between yaxis and bars
 	paddingLength := b.yAxisWidth + spacing
 	padding := strings.Repeat(paddingChar, paddingLength)
 
-	return padding + labels.String()
+	return padding + days.String() + "\n" + padding + sessions.String()
 }
 
 func getDayLabel(day string) string {

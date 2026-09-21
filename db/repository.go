@@ -103,7 +103,8 @@ func (r *SessionRepo) getDailyStats(from, to time.Time) ([]DailyStat, error) {
 		`
 		SELECT
 			date(started_at) AS day,
-			COALESCE(SUM(duration * (type = 'work')), 0) AS work_duration
+			COALESCE(SUM(duration * (type = 'work')), 0) AS work_duration,
+			COALESCE(SUM(type = 'work'), 0) AS work_sessions
 		FROM sessions
 		WHERE date(started_at) BETWEEN ? AND ?
 		GROUP BY day
@@ -133,6 +134,7 @@ func (r *SessionRepo) normalizeStats(from, to time.Time, stats []DailyStat) []Da
 		normalized = append(normalized, DailyStat{
 			Date:         day,
 			WorkDuration: m[day].WorkDuration,
+			WorkSessions: m[day].WorkSessions,
 		})
 
 		current = current.AddDate(0, 0, 1) // next day
