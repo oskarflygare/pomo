@@ -5,12 +5,12 @@ import (
 )
 
 type KeyMap struct {
-	Increase   key.Binding
-	Reset      key.Binding
-	Pause      key.Binding
-	Skip       key.Binding
-	ToggleText key.Binding
-	Quit       key.Binding
+	Increase        key.Binding
+	Reset           key.Binding
+	Pause           key.Binding
+	Skip            key.Binding
+	ToggleMiniature key.Binding
+	Quit            key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
@@ -19,7 +19,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 		k.Pause,
 		k.Reset,
 		k.Skip,
-		k.ToggleText,
+		k.ToggleMiniature,
 		k.Quit,
 	}
 }
@@ -45,9 +45,9 @@ var keyMap = KeyMap{
 		key.WithKeys("s"),
 		key.WithHelp("s", "skip"),
 	),
-	ToggleText: key.NewBinding(
+	ToggleMiniature: key.NewBinding(
 		key.WithKeys("t"),
-		key.WithHelp("t", "toggle text"),
+		key.WithHelp("t", "miniature"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c", "q"),

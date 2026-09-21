@@ -63,9 +63,10 @@ func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {
 		m.recordSession()
 		return m.nextSession()
 
-	case key.Matches(msg, keyMap.ToggleText):
-		m.showText = !m.showText
-		m.progressBar.ShowPercentage = m.showText
+	case key.Matches(msg, keyMap.ToggleMiniature):
+		m.miniature = !m.miniature
+		m.progressBar.ShowPercentage = !m.miniature
+		m.updateProgressBarWidth()
 		return nil
 
 	case key.Matches(msg, keyMap.Quit):
@@ -95,7 +96,7 @@ func (m *Model) handleWindowResize(msg tea.WindowSizeMsg) tea.Cmd {
 
 	m.width = msg.Width
 	m.height = msg.Height
-	m.progressBar.Width = min(m.width-2*padding-margin, maxWidth)
+	m.updateProgressBarWidth()
 
 	return nil
 }
@@ -119,6 +120,7 @@ func (m *Model) handleTimerTick(msg timer.TickMsg) tea.Cmd {
 	}
 
 	m.elapsed += m.timer.Interval
+	m.updateProgressBarWidth()
 
 	percent := m.getPercent()
 	cmds = append(cmds, m.progressBar.SetPercent(percent))
@@ -158,6 +160,7 @@ func (m *Model) handleProgressBarFrame(msg progress.FrameMsg) tea.Cmd {
 func (m *Model) updateProgressBar() tea.Cmd {
 	// reset timer with new duration minus passed time
 	m.timer.Timeout = m.duration - m.elapsed
+	m.updateProgressBarWidth()
 
 	// update progress bar
 	return m.progressBar.SetPercent(m.getPercent())
@@ -265,6 +268,7 @@ func (m *Model) startSession(taskType config.TaskType, task config.Task, isShort
 	m.elapsed = 0
 	m.duration = m.currentTask.Duration
 	m.timer = timer.New(m.currentTask.Duration)
+	m.updateProgressBarWidth()
 
 	m.sessionState = Running
 	return tea.Batch(

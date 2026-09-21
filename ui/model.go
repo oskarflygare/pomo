@@ -31,7 +31,7 @@ type Model struct {
 
 	// state
 	width, height    int // window dimensions
-	showText         bool
+	miniature        bool
 	onSessionEnd     string
 	sessionState     SessionState
 	confirmStartTime time.Time
@@ -90,7 +90,6 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		timer:    timer.New(task.Duration),
 		duration: task.Duration,
 
-		showText:        true,
 		onSessionEnd:    cfg.OnSessionEnd,
 		sessionState:    Running,
 		currentTaskType: taskType,

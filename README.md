@@ -238,10 +238,14 @@ work:
 | `Space`        | Pause/Resume timer        |
 | `←` / `h`      | Reset to initial duration |
 | `s`            | Skip to next session      |
-| `t`            | Show/hide timer text      |
+| `t`            | Toggle miniature layout   |
 | `q` / `Ctrl+C` | Quit                      |
 
 > Skip button skips directly to the next session, bypassing any prompts
+
+#### Miniature Layout
+
+Press `t` to show only the countdown and progress bar. The miniature layout hides the task title, session indicators, percentage, and shortcut help. It remains active across work and break transitions until you press `t` again or quit. On narrow terminals, pomo keeps the countdown visible and may omit the progress bar.
 
 #### Confirmation Dialog
 

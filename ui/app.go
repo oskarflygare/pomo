@@ -58,11 +58,11 @@ func (m Model) View() string {
 		return m.buildConfirmDialogView()
 	}
 
-	content := m.buildProgressBar()
-	help := ""
-	if m.showText {
-		content = m.buildMainContent() + m.buildStatusIndicators() + content
-		help = m.buildHelpView()
+	content := m.buildMainContent() + m.buildStatusIndicators() + m.buildProgressBar()
+	help := m.buildHelpView()
+	if m.miniature {
+		content = m.buildMiniatureContent()
+		help = ""
 	}
 
 	return lipgloss.Place(
