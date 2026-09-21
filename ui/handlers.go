@@ -63,6 +63,11 @@ func (m *Model) handleKeys(msg tea.KeyMsg) tea.Cmd {
 		m.recordSession()
 		return m.nextSession()
 
+	case key.Matches(msg, keyMap.ToggleText):
+		m.showText = !m.showText
+		m.progressBar.ShowPercentage = m.showText
+		return nil
+
 	case key.Matches(msg, keyMap.Quit):
 		m.recordSession()
 		return m.Quit()
