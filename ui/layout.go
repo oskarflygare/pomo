@@ -14,6 +14,7 @@ const (
 	margin             = 4
 	padding            = 2
 	separator          = " — "
+	miniatureGap       = " "
 	pausedIndicator    = "(paused)"
 	completedIndicator = "done!"
 )
@@ -65,6 +66,25 @@ func (m *Model) buildStatusIndicators() string {
 
 func (m *Model) buildProgressBar() string {
 	return "\n\n" + m.progressBar.View() + "\n"
+}
+
+func (m *Model) buildMiniatureContent() string {
+	timer := m.buildTimeLeft()
+	if m.progressBar.Width == 0 {
+		return timer
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Center, timer, miniatureGap, m.progressBar.View())
+}
+
+func (m *Model) updateProgressBarWidth() {
+	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
+	if m.miniature {
+		m.progressBar.Width = max(0, fullBudget-lipgloss.Width(m.buildTimeLeft())-lipgloss.Width(miniatureGap))
+		return
+	}
+
+	m.progressBar.Width = fullBudget
 }
 
 // returns time left as a string in HH:MM:SS format

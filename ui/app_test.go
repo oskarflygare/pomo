@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTextToggleHidesAndRestoresTimerText(t *testing.T) {
+func TestTextToggleShowsAndRestoresMiniatureTimerLayout(t *testing.T) {
 	m := Model{
 		progressBar:  progress.New(),
 		help:         help.New(),
@@ -21,23 +22,38 @@ func TestTextToggleHidesAndRestoresTimerText(t *testing.T) {
 		height:       24,
 		currentTask:  config.Task{Title: "focus time"},
 		sessionState: Paused,
-		showText:     true,
 		useTimerArt:  false,
 	}
 
+	m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
-	compactView := m.View()
+	miniatureView := m.View()
 
-	assert.NotContains(t, compactView, "focus time")
-	assert.NotContains(t, compactView, "pause/resume")
-	assert.NotContains(t, compactView, ":")
-	assert.NotContains(t, compactView, "0%")
-	assert.NotContains(t, compactView, pausedIndicator)
+	assert.NotContains(t, miniatureView, "focus time")
+	assert.NotContains(t, miniatureView, "pause/resume")
+	assert.NotContains(t, miniatureView, "0%")
+	assert.NotContains(t, miniatureView, pausedIndicator)
+	assert.True(t, containsSameLine(miniatureView, "01:00", "░"))
 
 	m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
 	fullView := m.View()
 
 	assert.Contains(t, fullView, "focus time")
 	assert.Contains(t, fullView, "pause/resume")
+	assert.Contains(t, fullView, "0%")
 	assert.Contains(t, fullView, pausedIndicator)
+}
+
+func containsSameLine(view string, substrings ...string) bool {
+	for _, line := range strings.Split(view, "\n") {
+		containsAll := true
+		for _, substring := range substrings {
+			containsAll = containsAll && strings.Contains(line, substring)
+		}
+		if containsAll {
+			return true
+		}
+	}
+
+	return false
 }
