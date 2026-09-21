@@ -80,6 +80,8 @@ longBreak:
 	assert.Equal(t, defaults.Break.Duration, C.Break.Duration)
 	assert.Equal(t, defaults.Break.Title, C.Break.Title)
 	assert.Equal(t, defaults.Work.Notification.Title, C.Work.Notification.Title)
+	assert.True(t, C.Work.Notification.Urgent, "Work notifications should play the system alert sound by default")
+	assert.True(t, C.Break.Notification.Urgent, "Break notifications should play the system alert sound by default")
 	assert.Equal(t, defaults.ASCIIArt.Enabled, C.ASCIIArt.Enabled)
 	assert.Equal(t, defaults.ASCIIArt.Font, C.ASCIIArt.Font)
 }
