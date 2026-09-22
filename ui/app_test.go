@@ -140,20 +140,20 @@ func TestMiniatureLayoutRecalculatesProgressWidth(t *testing.T) {
 	})
 }
 
-func TestMiniatureLayoutRecalculatesProgressWidthForEachASCIIFont(t *testing.T) {
+func TestMiniatureLayoutUsesPlainTimerWhenASCIIArtIsEnabled(t *testing.T) {
 	for _, fontName := range []string{ascii.Mono12, ascii.Rebel, ascii.Ansi, ascii.AnsiShadow} {
 		t.Run(fontName, func(t *testing.T) {
 			m := miniatureTestModel(time.Minute)
 			m.useTimerArt = true
 			m.timerFont = ascii.GetFont(fontName)
-			m.miniature = true
-			m.progressBar.ShowPercentage = false
 			m.handleWindowResize(tea.WindowSizeMsg{Width: 80, Height: 24})
+			m.handleKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
 
-			m.handleTimerTick(timer.TickMsg{})
 			content := m.buildMiniatureContent()
-			assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
-			assert.InDelta(t, lipgloss.Height(m.buildTimeLeft())/2, lineContaining(content, "░"), 1)
+
+			assert.Equal(t, 1, lipgloss.Height(content))
+			assert.True(t, containsSameLine(content, "01:00", "░"))
+			assert.Equal(t, 66, m.progressBar.Width)
 		})
 	}
 }
@@ -174,7 +174,7 @@ func miniatureTestModel(duration time.Duration) Model {
 
 func miniatureProgressWidth(m Model) int {
 	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
-	return max(0, fullBudget-lipgloss.Width(m.buildTimeLeft())-lipgloss.Width(miniatureGap))
+	return max(0, fullBudget-lipgloss.Width(m.buildPlainTimeLeft())-lipgloss.Width(miniatureGap))
 }
 
 func assertMiniatureState(t *testing.T, m Model, title string) {
@@ -183,16 +183,6 @@ func assertMiniatureState(t *testing.T, m Model, title string) {
 	assert.False(t, m.progressBar.ShowPercentage)
 	assert.Equal(t, title, m.currentTask.Title)
 	assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
-}
-
-func lineContaining(content, substring string) int {
-	for i, line := range strings.Split(content, "\n") {
-		if strings.Contains(line, substring) {
-			return i
-		}
-	}
-
-	return -1
 }
 
 func sessionStateName(state SessionState) string {

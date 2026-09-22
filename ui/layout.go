@@ -69,7 +69,7 @@ func (m *Model) buildProgressBar() string {
 }
 
 func (m *Model) buildMiniatureContent() string {
-	timer := m.buildTimeLeft()
+	timer := m.buildPlainTimeLeft()
 	if m.progressBar.Width == 0 {
 		return timer
 	}
@@ -80,15 +80,15 @@ func (m *Model) buildMiniatureContent() string {
 func (m *Model) updateProgressBarWidth() {
 	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
 	if m.miniature {
-		m.progressBar.Width = max(0, fullBudget-lipgloss.Width(m.buildTimeLeft())-lipgloss.Width(miniatureGap))
+		m.progressBar.Width = max(0, fullBudget-lipgloss.Width(m.buildPlainTimeLeft())-lipgloss.Width(miniatureGap))
 		return
 	}
 
 	m.progressBar.Width = fullBudget
 }
 
-// returns time left as a string in HH:MM:SS format
-func (m *Model) buildTimeLeft() string {
+// buildPlainTimeLeft returns time left in MM:SS or HH:MM:SS format.
+func (m *Model) buildPlainTimeLeft() string {
 	left := m.timer.Timeout
 	hours := int(left.Hours())
 	minutes := int(left.Minutes()) % 60
@@ -100,7 +100,11 @@ func (m *Model) buildTimeLeft() string {
 	if hours > 0 {
 		time += fmt.Sprintf("%02d:", hours)
 	}
-	time += fmt.Sprintf("%02d:%02d", minutes, seconds)
+	return time + fmt.Sprintf("%02d:%02d", minutes, seconds)
+}
+
+func (m *Model) buildTimeLeft() string {
+	time := m.buildPlainTimeLeft()
 
 	if m.useTimerArt {
 		time = ascii.RenderNumber(time, m.timerFont)
