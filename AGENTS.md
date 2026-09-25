@@ -22,6 +22,12 @@ DEBUG=1 go run .  # write Bubble Tea logs to debug.log
 ```
 CI runs `go build -v ./...`, `go vet ./...`, and `go test ./...` with Go 1.25. Run all three checks after Go changes; format changed Go files first.
 
+After a fix or feature lands and the checks pass, reinstall the local binary so the `pomo` on `PATH` matches the source:
+```sh
+go build -o ~/.local/bin/pomo .
+```
+This is the only installed `pomo`. Config-only changes (`pomo.yaml`) need no reinstall, only a new pomo session.
+
 ## Code and test conventions
 - Follow idiomatic Go and `gofmt`; keep package responsibilities aligned with the layout above.
 - Add tests beside implementation in `*_test.go`. Tests use `testify`; prefer table-driven cases for input variations. Use `require` for setup that must stop the test and `assert` for independent expectations.
