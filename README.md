@@ -245,7 +245,7 @@ work:
 
 #### Miniature Layout
 
-Press `t` to show only the countdown and progress bar. The miniature layout hides the task title, session indicators, percentage, and shortcut help. It remains active across work and break transitions until you press `t` again or quit. On narrow terminals, pomo keeps the countdown visible and may omit the progress bar.
+Press `t` to show the phase (`Work` or `Break`), countdown, and progress bar. The miniature layout hides the task title, session indicators, percentage, and shortcut help. It remains active across work and break transitions until you press `t` again or quit. On narrow terminals, pomo keeps the countdown visible and may omit the progress bar and phase label.
 
 #### Confirmation Dialog
 
