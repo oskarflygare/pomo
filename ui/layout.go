@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Bahaaio/pomo/config"
 	"github.com/Bahaaio/pomo/ui/ascii"
 	"github.com/Bahaaio/pomo/ui/colors"
 	"github.com/charmbracelet/lipgloss"
@@ -68,8 +69,22 @@ func (m *Model) buildProgressBar() string {
 	return "\n\n" + m.progressBar.View() + "\n"
 }
 
-func (m *Model) buildMiniatureContent() string {
+func (m *Model) buildMiniatureTimer() string {
+	phase := "Work"
+	if m.currentTaskType == config.BreakTask {
+		phase = "Break"
+	}
+
 	timer := m.buildPlainTimeLeft()
+	label := phase + " " + timer
+	if lipgloss.Width(label) > m.width {
+		return timer
+	}
+	return label
+}
+
+func (m *Model) buildMiniatureContent() string {
+	timer := m.buildMiniatureTimer()
 	if m.progressBar.Width == 0 {
 		return timer
 	}
@@ -80,7 +95,7 @@ func (m *Model) buildMiniatureContent() string {
 func (m *Model) updateProgressBarWidth() {
 	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
 	if m.miniature {
-		m.progressBar.Width = max(0, fullBudget-lipgloss.Width(m.buildPlainTimeLeft())-lipgloss.Width(miniatureGap))
+		m.progressBar.Width = max(0, fullBudget-lipgloss.Width(m.buildMiniatureTimer())-lipgloss.Width(miniatureGap))
 		return
 	}
 

@@ -153,7 +153,7 @@ func TestMiniatureLayoutUsesPlainTimerWhenASCIIArtIsEnabled(t *testing.T) {
 
 			assert.Equal(t, 1, lipgloss.Height(content))
 			assert.True(t, containsSameLine(content, "01:00", "░"))
-			assert.Equal(t, 66, m.progressBar.Width)
+			assert.Equal(t, 61, m.progressBar.Width)
 		})
 	}
 }
@@ -174,7 +174,7 @@ func miniatureTestModel(duration time.Duration) Model {
 
 func miniatureProgressWidth(m Model) int {
 	fullBudget := max(0, min(m.width-2*padding-margin, maxWidth))
-	return max(0, fullBudget-lipgloss.Width(m.buildPlainTimeLeft())-lipgloss.Width(miniatureGap))
+	return max(0, fullBudget-lipgloss.Width(m.buildMiniatureTimer())-lipgloss.Width(miniatureGap))
 }
 
 func assertMiniatureState(t *testing.T, m Model, title string) {
@@ -182,6 +182,11 @@ func assertMiniatureState(t *testing.T, m Model, title string) {
 	assert.True(t, m.miniature)
 	assert.False(t, m.progressBar.ShowPercentage)
 	assert.Equal(t, title, m.currentTask.Title)
+	phase := "Work"
+	if m.currentTaskType == config.BreakTask {
+		phase = "Break"
+	}
+	assert.Contains(t, m.buildMiniatureContent(), phase+" ")
 	assert.Equal(t, miniatureProgressWidth(m), m.progressBar.Width)
 }
 
