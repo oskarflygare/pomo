@@ -43,7 +43,14 @@ func Run(cfg config.Config) error {
 		repo = db.NewSessionRepo(database)
 	}
 
-	controller = NewController(cfg, repo, nativeView{}, func() { C.pomoQuit() })
+	var login LoginToggle
+	if item, err := DefaultLoginItem(); err != nil {
+		log.Printf("login item unavailable: %v", err)
+	} else {
+		login = item
+	}
+
+	controller = NewController(cfg, repo, nativeView{}, login, func() { C.pomoQuit() })
 
 	// record the current session when interrupted from the terminal
 	signals := make(chan os.Signal, 1)

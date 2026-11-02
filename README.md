@@ -99,7 +99,15 @@ The menu bar shows a miniature of the progress bar with the phase and countdown 
 
 Choosing a work or break length applies to the current session when it is the same type and is saved to the `duration` in your config file. Only that line changes, and comments are kept. When a session ends, pomo sends the usual notification and runs the `then` commands. With `onSessionEnd: start` the next session starts automatically. With any other value it waits for a right-click.
 
-The menu bar needs a build with cgo enabled, such as `go install` or [Build from Source](#build-from-source) on a Mac. To keep it running without a terminal, start it detached: `nohup pomo menubar >/dev/null 2>&1 &`.
+The menu bar needs a build with cgo enabled, such as `go install` or [Build from Source](#build-from-source) on a Mac.
+
+To start it automatically at login, check **Open at Login** in its menu, or run:
+
+```bash
+pomo menubar login on   # start at login (or: off; no argument shows status)
+```
+
+This adds a launchd agent (`~/Library/LaunchAgents/com.github.bahaaio.pomo.menubar.plist`) that runs the current `pomo` binary from your home directory, so it uses your per-user config. It also appears under System Settings → General → Login Items. If the menu bar crashes, launchd restarts it, but choosing **Quit pomo** keeps it closed until your next login. Run `pomo menubar login on` again if you move the binary.
 
 ## Installation
 

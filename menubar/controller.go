@@ -50,6 +50,13 @@ type Repo interface {
 	GetAllTimeStats() (db.AllTimeStats, error)
 }
 
+// LoginToggle switches starting the menu bar at login.
+type LoginToggle interface {
+	Enabled() bool
+	Enable() error
+	Disable() error
+}
+
 // Controller owns the timer and translates user actions into state changes.
 // Its methods are safe to call from the UI thread and the ticker concurrently.
 type Controller struct {
@@ -57,8 +64,9 @@ type Controller struct {
 	timer        *Timer
 	repo         Repo // nil if the database is unavailable
 	view         View
+	login        LoginToggle // nil hides the login menu item
 	onSessionEnd string
-	saveError    error
+	menuError    string // last failed menu action, shown in the menu
 
 	now          func() time.Time
 	saveDuration func(config.TaskType, time.Duration) error
@@ -67,12 +75,13 @@ type Controller struct {
 }
 
 // NewController returns a controller with a paused work session.
-// repo may be nil; quit is called after the current session is recorded.
-func NewController(cfg config.Config, repo Repo, view View, quit func()) *Controller {
+// repo and login may be nil; quit is called after the current session is recorded.
+func NewController(cfg config.Config, repo Repo, view View, login LoginToggle, quit func()) *Controller {
 	return &Controller{
 		timer:        NewTimer(config.WorkTask, cfg.LongBreak),
 		repo:         repo,
 		view:         view,
+		login:        login,
 		onSessionEnd: cfg.OnSessionEnd,
 		now:          time.Now,
 		saveDuration: config.SaveDuration,
@@ -118,9 +127,10 @@ func (c *Controller) Reset() {
 // applying it to the current session if it is of the same type.
 func (c *Controller) SetDuration(taskType config.TaskType, duration time.Duration) {
 	c.update(func(now time.Time) {
-		c.saveError = c.saveDuration(taskType, duration)
-		if c.saveError != nil {
-			log.Printf("failed to save %v duration: %v", taskType, c.saveError)
+		c.menuError = ""
+		if err := c.saveDuration(taskType, duration); err != nil {
+			log.Printf("failed to save %v duration: %v", taskType, err)
+			c.menuError = "Could not save setting to pomo.yaml"
 			taskType.GetTask().Duration = duration
 		}
 
@@ -191,14 +201,41 @@ func (c *Controller) Menu() []MenuItem {
 		c.durationItem("Break length", config.BreakTask, breakPresets),
 	)
 
-	if c.saveError != nil {
-		items = append(items, MenuItem{Title: "Could not save setting to pomo.yaml"})
+	items = append(items, MenuItem{Separator: true})
+
+	if c.login != nil {
+		items = append(items, MenuItem{
+			Title:   "Open at Login",
+			Enabled: true,
+			Checked: c.login.Enabled(),
+			Action:  c.ToggleLogin,
+		})
 	}
 
-	return append(items,
-		MenuItem{Separator: true},
-		MenuItem{Title: "Quit pomo", Enabled: true, Action: c.Quit},
-	)
+	if c.menuError != "" {
+		items = append(items, MenuItem{Title: c.menuError})
+	}
+
+	return append(items, MenuItem{Title: "Quit pomo", Enabled: true, Action: c.Quit})
+}
+
+// ToggleLogin enables or disables starting the menu bar at login.
+func (c *Controller) ToggleLogin() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var err error
+	if c.login.Enabled() {
+		err = c.login.Disable()
+	} else {
+		err = c.login.Enable()
+	}
+
+	c.menuError = ""
+	if err != nil {
+		log.Printf("failed to update login item: %v", err)
+		c.menuError = "Could not update login item"
+	}
 }
 
 // applies a state change and refreshes the view

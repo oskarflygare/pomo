@@ -41,6 +41,27 @@ func (r *fakeRepo) GetAllTimeStats() (db.AllTimeStats, error) {
 	return db.AllTimeStats{TotalWorkDuration: 52 * time.Hour}, r.err
 }
 
+type fakeLogin struct {
+	enabled bool
+	err     error
+}
+
+func (l *fakeLogin) Enabled() bool { return l.enabled }
+
+func (l *fakeLogin) Enable() error {
+	if l.err == nil {
+		l.enabled = true
+	}
+	return l.err
+}
+
+func (l *fakeLogin) Disable() error {
+	if l.err == nil {
+		l.enabled = false
+	}
+	return l.err
+}
+
 type fakeView struct{ status Status }
 
 func (v *fakeView) SetStatus(s Status) { v.status = s }
@@ -50,6 +71,7 @@ type harness struct {
 	clock   time.Time
 	repo    *fakeRepo
 	view    *fakeView
+	login   *fakeLogin
 	actions []string
 	saved   map[config.TaskType]time.Duration
 	quit    bool
@@ -60,8 +82,8 @@ func newHarness(t *testing.T, onSessionEnd string) *harness {
 	setupConfig(t)
 	config.C.OnSessionEnd = onSessionEnd
 
-	h := &harness{clock: t0, repo: &fakeRepo{}, view: &fakeView{}, saved: map[config.TaskType]time.Duration{}}
-	h.Controller = NewController(config.C, h.repo, h.view, func() { h.quit = true })
+	h := &harness{clock: t0, repo: &fakeRepo{}, view: &fakeView{}, login: &fakeLogin{}, saved: map[config.TaskType]time.Duration{}}
+	h.Controller = NewController(config.C, h.repo, h.view, h.login, func() { h.quit = true })
 	h.now = func() time.Time { return h.clock }
 	h.runActions = func(task config.Task) { h.actions = append(h.actions, task.Title) }
 	h.saveDuration = func(tt config.TaskType, d time.Duration) error {
@@ -178,13 +200,13 @@ func TestControllerSetDurationSaveError(t *testing.T) {
 func TestControllerMenu(t *testing.T) {
 	h := newHarness(t, "ask")
 	menu := h.Menu()
-	require.Len(t, menu, 14)
+	require.Len(t, menu, 15)
 
 	assert.Equal(t, []string{
 		"Work · 25:00 left", "Start", "Skip to Break", "Reset", "",
 		"Today", "Last 7 days", "Streak", "All time", "",
 		"Work length", "Break length", "",
-		"Quit pomo",
+		"Open at Login", "Quit pomo",
 	}, titles(menu))
 
 	assert.Equal(t, "3 sessions · 1h 15m", detail(menu, "Today"))
@@ -273,4 +295,27 @@ func find(items []MenuItem, title string) MenuItem {
 
 func detail(items []MenuItem, title string) string {
 	return find(items, title).Detail
+}
+
+func TestControllerToggleLogin(t *testing.T) {
+	h := newHarness(t, "ask")
+	assert.False(t, find(h.Menu(), "Open at Login").Checked)
+
+	find(h.Menu(), "Open at Login").Action()
+	assert.True(t, h.login.enabled)
+	assert.True(t, find(h.Menu(), "Open at Login").Checked)
+
+	find(h.Menu(), "Open at Login").Action()
+	assert.False(t, h.login.enabled)
+
+	h.login.err = errors.New("permission denied")
+	find(h.Menu(), "Open at Login").Action()
+	assert.Contains(t, titles(h.Menu()), "Could not update login item")
+}
+
+func TestControllerMenuWithoutLogin(t *testing.T) {
+	h := newHarness(t, "ask")
+	h.Controller.login = nil
+
+	assert.NotContains(t, titles(h.Menu()), "Open at Login")
 }
