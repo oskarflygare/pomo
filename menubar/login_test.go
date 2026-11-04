@@ -32,7 +32,7 @@ func TestLoginItemEnableDisable(t *testing.T) {
 	require.NoError(t, err)
 	for _, want := range []string{
 		"<string>" + LoginLabel + "</string>",
-		"<string>/Users/me/.local/bin/pomo</string>\n\t\t<string>menubar</string>",
+		"<string>/Users/me/.local/bin/pomo</string>\n\t\t<string>menubar</string>\n\t\t<string>--foreground</string>",
 		"<key>WorkingDirectory</key>\n\t<string>/Users/me</string>",
 		"<string>/opt/homebrew/bin:/usr/bin:/bin</string>",
 		"<key>RunAtLoad</key>\n\t<true/>",

@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/Bahaaio/pomo/config"
@@ -18,12 +19,33 @@ var menubarCmd = &cobra.Command{
 
 Right-click the bar to start or pause the session. Click it to open
 a menu with today's stats and the work and break lengths, which are
-saved to your config file.`,
+saved to your config file.
+
+It runs in the background, so closing the terminal does not stop it.
+Use --foreground to keep it attached to the terminal instead.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		foreground, _ := cmd.Flags().GetBool("foreground")
+		if runtime.GOOS == "darwin" && !foreground && !startedByLaunchd() {
+			pid, err := detach("menubar", "--foreground")
+			if err != nil {
+				die(err)
+			}
+			fmt.Printf("menu bar timer running in the background (pid %d)\n", pid)
+			return
+		}
+
 		if err := menubar.Run(config.C); err != nil {
 			die(err)
 		}
 	},
+}
+
+// startedByLaunchd reports whether launchd (pid 1) is the parent, as for the
+// login agent. launchd must keep supervising the process to restart it after
+// a crash, so it stays in the foreground even with older agent plists that
+// lack --foreground.
+func startedByLaunchd() bool {
+	return os.Getppid() == 1
 }
 
 var menubarLoginCmd = &cobra.Command{
@@ -77,6 +99,7 @@ func runMenubarLogin(args []string) error {
 }
 
 func init() {
+	menubarCmd.Flags().BoolP("foreground", "f", false, "stay attached to the terminal instead of running in the background")
 	menubarCmd.AddCommand(menubarLoginCmd)
 	rootCmd.AddCommand(menubarCmd)
 }
