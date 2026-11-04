@@ -110,6 +110,7 @@ work:
 func TestLoadConfigAllFieldsComprehensive(t *testing.T) {
 	configYAML := `
 onSessionEnd: start
+autoStartBreaks: true
 asciiArt:
   enabled: true
   font: ansi
@@ -148,6 +149,7 @@ longBreak:
 
 	// main config
 	assert.Equal(t, "start", C.OnSessionEnd, "OnSessionEnd should be 'start'")
+	assert.True(t, C.AutoStartBreaks, "AutoStartBreaks should be enabled")
 
 	// ASCII art
 	assert.True(t, C.ASCIIArt.Enabled, "ASCII art should be enabled")
@@ -294,6 +296,7 @@ func getDefaultConfig() Config {
 func assertConfigMatches(t *testing.T, expected Config, actual Config) {
 	// main config assertion
 	assert.Equal(t, expected.OnSessionEnd, actual.OnSessionEnd)
+	assert.Equal(t, expected.AutoStartBreaks, actual.AutoStartBreaks)
 
 	// ASCII Art assertions
 	assert.Equal(t, expected.ASCIIArt.Enabled, actual.ASCIIArt.Enabled)

@@ -185,6 +185,13 @@ func (m *Model) handleCompletion() tea.Cmd {
 	m.commandsCancel = cancel
 	m.commandsWg = actions.RunPostActions(ctx, m.currentTask)
 
+	if m.autoStartsNext() {
+		// let post actions finish in the background,
+		// bounded by the context time limit
+		m.commandsWg, m.commandsCancel = nil, nil
+		return m.nextSession()
+	}
+
 	// continue after the completion according to config
 	switch m.onSessionEnd {
 	case "ask":
@@ -195,14 +202,18 @@ func (m *Model) handleCompletion() tea.Cmd {
 		return func() tea.Msg {
 			return confirmTickMsg{}
 		}
-	case "start":
-		return m.nextSession()
 	case "quit":
 		return m.Quit()
 	default:
 		log.Printf("unknown onSessionEnd value %q, defaulting to quit", m.onSessionEnd)
 		return m.Quit()
 	}
+}
+
+// reports whether the session following the completed one starts without asking
+func (m *Model) autoStartsNext() bool {
+	return m.onSessionEnd == "start" ||
+		(m.autoStartBreaks && m.currentTaskType == config.WorkTask)
 }
 
 // starts session with the opposite task type (work <-> break)
@@ -251,10 +262,8 @@ func (m *Model) shortSession() tea.Cmd {
 func (m *Model) startSession(taskType config.TaskType, task config.Task, isShortSession bool) tea.Cmd {
 	// cancel any running post actions
 	// before starting the next session
-	//
-	// for onSessionEnd == "start", we don't cancel immediately
-	// will run commands in the background with the context time limit
-	if m.commandsCancel != nil && m.onSessionEnd != "start" {
+	// (auto-started sessions have already released them)
+	if m.commandsCancel != nil {
 		m.commandsCancel()
 	}
 

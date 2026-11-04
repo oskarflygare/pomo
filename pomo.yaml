@@ -3,6 +3,7 @@
 # https://github.com/Bahaaio/pomo
 
 onSessionEnd: ask
+autoStartBreaks: false
 
 asciiArt:
   enabled: true
