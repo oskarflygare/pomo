@@ -33,6 +33,7 @@ type Model struct {
 	width, height    int // window dimensions
 	miniature        bool
 	onSessionEnd     string
+	autoStartBreaks  bool
 	sessionState     SessionState
 	confirmStartTime time.Time
 	currentTaskType  config.TaskType
@@ -91,6 +92,7 @@ func NewModel(taskType config.TaskType, cfg config.Config) Model {
 		duration: task.Duration,
 
 		onSessionEnd:    cfg.OnSessionEnd,
+		autoStartBreaks: cfg.AutoStartBreaks,
 		sessionState:    Running,
 		currentTaskType: taskType,
 		currentTask:     *task,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,36 @@ import (
 // and writes it to the config file in use, creating the per-user
 // config file if none exists. Other keys and comments are preserved.
 func SaveDuration(taskType TaskType, duration time.Duration) error {
+	key := "work"
+	if taskType == BreakTask {
+		key = "break"
+	}
+
+	if err := saveScalar([]string{key, "duration"}, FormatDuration(duration), "!!str"); err != nil {
+		return err
+	}
+
+	taskType.GetTask().Duration = duration
+	viper.Set(key+".duration", duration)
+
+	return nil
+}
+
+// SaveAutoStartBreaks sets autoStartBreaks in the loaded config
+// and writes it to the config file like [SaveDuration].
+func SaveAutoStartBreaks(enabled bool) error {
+	if err := saveScalar([]string{"autoStartBreaks"}, strconv.FormatBool(enabled), "!!bool"); err != nil {
+		return err
+	}
+
+	C.AutoStartBreaks = enabled
+	viper.Set("autoStartBreaks", enabled)
+
+	return nil
+}
+
+// writes a scalar to the config file in use, or the per-user config file if none is
+func saveScalar(keys []string, value, tag string) error {
 	path := viper.ConfigFileUsed()
 	if path == "" {
 		dir, err := getConfigDir()
@@ -25,19 +56,7 @@ func SaveDuration(taskType TaskType, duration time.Duration) error {
 		path = filepath.Join(dir, ConfigFile)
 	}
 
-	key := "work"
-	if taskType == BreakTask {
-		key = "break"
-	}
-
-	if err := writeDuration(path, key, duration); err != nil {
-		return err
-	}
-
-	taskType.GetTask().Duration = duration
-	viper.Set(key+".duration", duration)
-
-	return nil
+	return writeScalar(path, keys, value, tag)
 }
 
 // FormatDuration formats a duration the way it is written in pomo.yaml (e.g. 25m, 1h30m).
@@ -52,8 +71,8 @@ func FormatDuration(d time.Duration) string {
 	return s
 }
 
-// updates <key>.duration in the YAML file at path
-func writeDuration(path, key string, duration time.Duration) error {
+// sets the scalar at the nested key path in the YAML file at path
+func writeScalar(path string, keys []string, value, tag string) error {
 	data, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -73,22 +92,27 @@ func writeDuration(path, key string, duration time.Duration) error {
 		return fmt.Errorf("could not update %s: top level is not a mapping", path)
 	}
 
-	formatted := FormatDuration(duration)
-
 	// edit the existing value in place to keep the file's formatting intact
-	if task := findValue(root, key); task != nil && task.Kind == yaml.MappingNode {
-		if value := findValue(task, "duration"); value != nil && value.Kind == yaml.ScalarNode {
-			if edited, ok := replaceScalar(data, value, formatted); ok {
-				return os.WriteFile(path, edited, 0o644)
-			}
+	if node := findPath(root, keys); node != nil && node.Kind == yaml.ScalarNode {
+		if edited, ok := replaceScalar(data, node, value); ok {
+			return os.WriteFile(path, edited, 0o644)
 		}
 	}
 
 	// otherwise add the missing keys and re-encode the document
-	task := mappingValue(root, key, yaml.MappingNode)
-	value := mappingValue(task, "duration", yaml.ScalarNode)
-	value.Tag = "!!str"
-	value.Value = formatted
+	parent := root
+	for _, key := range keys[:len(keys)-1] {
+		parent = mappingValue(parent, key, yaml.MappingNode)
+		if parent.Kind != yaml.MappingNode {
+			// e.g. an empty "break:" entry, which parses as null
+			*parent = yaml.Node{Kind: yaml.MappingNode}
+		}
+	}
+	node := mappingValue(parent, keys[len(keys)-1], yaml.ScalarNode)
+	node.Kind = yaml.ScalarNode
+	node.Style = 0
+	node.Tag = tag
+	node.Value = value
 
 	var out strings.Builder
 	encoder := yaml.NewEncoder(&out)
@@ -102,6 +126,21 @@ func writeDuration(path, key string, duration time.Duration) error {
 	}
 
 	return os.WriteFile(path, []byte(out.String()), 0o644)
+}
+
+// returns the node at the nested key path, or nil if any key is missing
+func findPath(mapping *yaml.Node, keys []string) *yaml.Node {
+	node := mapping
+	for _, key := range keys {
+		if node.Kind != yaml.MappingNode {
+			return nil
+		}
+		if node = findValue(node, key); node == nil {
+			return nil
+		}
+	}
+
+	return node
 }
 
 // replaces the source text of a single-line scalar node with value

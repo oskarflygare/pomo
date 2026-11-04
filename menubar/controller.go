@@ -60,33 +60,37 @@ type LoginToggle interface {
 // Controller owns the timer and translates user actions into state changes.
 // Its methods are safe to call from the UI thread and the ticker concurrently.
 type Controller struct {
-	mu           sync.Mutex
-	timer        *Timer
-	repo         Repo // nil if the database is unavailable
-	view         View
-	login        LoginToggle // nil hides the login menu item
-	onSessionEnd string
-	menuError    string // last failed menu action, shown in the menu
+	mu              sync.Mutex
+	timer           *Timer
+	repo            Repo // nil if the database is unavailable
+	view            View
+	login           LoginToggle // nil hides the login menu item
+	onSessionEnd    string
+	autoStartBreaks bool
+	menuError       string // last failed menu action, shown in the menu
 
-	now          func() time.Time
-	saveDuration func(config.TaskType, time.Duration) error
-	runActions   func(config.Task)
-	quit         func()
+	now                 func() time.Time
+	saveDuration        func(config.TaskType, time.Duration) error
+	saveAutoStartBreaks func(bool) error
+	runActions          func(config.Task)
+	quit                func()
 }
 
 // NewController returns a controller with a paused work session.
 // repo and login may be nil; quit is called after the current session is recorded.
 func NewController(cfg config.Config, repo Repo, view View, login LoginToggle, quit func()) *Controller {
 	return &Controller{
-		timer:        NewTimer(config.WorkTask, cfg.LongBreak),
-		repo:         repo,
-		view:         view,
-		login:        login,
-		onSessionEnd: cfg.OnSessionEnd,
-		now:          time.Now,
-		saveDuration: config.SaveDuration,
-		runActions:   runPostActions,
-		quit:         quit,
+		timer:               NewTimer(config.WorkTask, cfg.LongBreak),
+		repo:                repo,
+		view:                view,
+		login:               login,
+		onSessionEnd:        cfg.OnSessionEnd,
+		autoStartBreaks:     cfg.AutoStartBreaks,
+		now:                 time.Now,
+		saveDuration:        config.SaveDuration,
+		saveAutoStartBreaks: config.SaveAutoStartBreaks,
+		runActions:          runPostActions,
+		quit:                quit,
 	}
 }
 
@@ -144,6 +148,21 @@ func (c *Controller) SetDuration(taskType config.TaskType, duration time.Duratio
 	})
 }
 
+// ToggleAutoStartBreaks switches starting breaks automatically
+// when a work session ends, and persists the choice.
+func (c *Controller) ToggleAutoStartBreaks() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.autoStartBreaks = !c.autoStartBreaks
+
+	c.menuError = ""
+	if err := c.saveAutoStartBreaks(c.autoStartBreaks); err != nil {
+		log.Printf("failed to save autoStartBreaks: %v", err)
+		c.menuError = "Could not save setting to pomo.yaml"
+	}
+}
+
 // Quit records the current session and exits.
 func (c *Controller) Quit() {
 	c.mu.Lock()
@@ -199,6 +218,7 @@ func (c *Controller) Menu() []MenuItem {
 		MenuItem{Separator: true},
 		c.durationItem("Work length", config.WorkTask, workPresets),
 		c.durationItem("Break length", config.BreakTask, breakPresets),
+		c.autoStartBreaksItem(),
 	)
 
 	items = append(items, MenuItem{Separator: true})
@@ -273,7 +293,13 @@ func (c *Controller) complete(now time.Time) {
 
 	c.record(now)
 	c.runActions(c.timer.Task())
-	c.timer.Next(now, c.onSessionEnd == "start")
+	c.timer.Next(now, c.autoStartsNext())
+}
+
+// reports whether the session following the current one starts without a click
+func (c *Controller) autoStartsNext() bool {
+	return c.onSessionEnd == "start" ||
+		(c.autoStartBreaks && c.timer.TaskType() == config.WorkTask)
 }
 
 // records the current session in the database, ignoring near-zero sessions
@@ -347,6 +373,24 @@ func (c *Controller) durationItem(title string, taskType config.TaskType, preset
 		Enabled: true,
 		Submenu: submenu,
 	}
+}
+
+// with onSessionEnd: start every session auto-starts, so the toggle is shown checked and locked
+func (c *Controller) autoStartBreaksItem() MenuItem {
+	item := MenuItem{
+		Title:   "Auto-start Breaks",
+		Enabled: true,
+		Checked: c.autoStartBreaks,
+		Action:  c.ToggleAutoStartBreaks,
+	}
+
+	if c.onSessionEnd == "start" {
+		item.Enabled = false
+		item.Checked = true
+		item.Detail = "onSessionEnd: start"
+	}
+
+	return item
 }
 
 func sessionName(t *Timer) string {

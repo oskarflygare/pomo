@@ -74,6 +74,7 @@ type harness struct {
 	login   *fakeLogin
 	actions []string
 	saved   map[config.TaskType]time.Duration
+	saveErr error
 	quit    bool
 }
 
@@ -91,6 +92,7 @@ func newHarness(t *testing.T, onSessionEnd string) *harness {
 		tt.GetTask().Duration = d
 		return nil
 	}
+	h.saveAutoStartBreaks = func(bool) error { return h.saveErr }
 
 	return h
 }
@@ -200,12 +202,12 @@ func TestControllerSetDurationSaveError(t *testing.T) {
 func TestControllerMenu(t *testing.T) {
 	h := newHarness(t, "ask")
 	menu := h.Menu()
-	require.Len(t, menu, 15)
+	require.Len(t, menu, 16)
 
 	assert.Equal(t, []string{
 		"Work · 25:00 left", "Start", "Skip to Break", "Reset", "",
 		"Today", "Last 7 days", "Streak", "All time", "",
-		"Work length", "Break length", "",
+		"Work length", "Break length", "Auto-start Breaks", "",
 		"Open at Login", "Quit pomo",
 	}, titles(menu))
 
@@ -229,6 +231,52 @@ func TestControllerMenu(t *testing.T) {
 	assert.Equal(t, "Work · 44:00 left (paused)", menu[0].Title)
 	assert.Equal(t, "Resume", menu[1].Title)
 	assert.True(t, find(menu, "Reset").Enabled)
+}
+
+func TestControllerAutoStartBreaks(t *testing.T) {
+	h := newHarness(t, "ask")
+	assert.False(t, find(h.Menu(), "Auto-start Breaks").Checked)
+
+	find(h.Menu(), "Auto-start Breaks").Action()
+	assert.True(t, find(h.Menu(), "Auto-start Breaks").Checked)
+
+	// work completion starts the break
+	h.Toggle()
+	h.advance(25 * time.Minute)
+	assert.Equal(t, "Break 05:00", h.view.status.Label)
+	assert.False(t, h.view.status.Paused)
+
+	// break completion still waits for a click
+	h.advance(5 * time.Minute)
+	assert.Equal(t, "Work 25:00", h.view.status.Label)
+	assert.True(t, h.view.status.Paused)
+
+	// switching it off again restores waiting after work
+	find(h.Menu(), "Auto-start Breaks").Action()
+	h.Toggle()
+	h.advance(25 * time.Minute)
+	assert.Equal(t, "Break 15:00", h.view.status.Label, "second cycle is a long break")
+	assert.True(t, h.view.status.Paused)
+}
+
+func TestControllerAutoStartBreaksSaveError(t *testing.T) {
+	h := newHarness(t, "ask")
+	h.saveErr = errors.New("read-only")
+
+	find(h.Menu(), "Auto-start Breaks").Action()
+
+	menu := h.Menu()
+	assert.True(t, find(menu, "Auto-start Breaks").Checked, "applies in memory anyway")
+	assert.Contains(t, titles(menu), "Could not save setting to pomo.yaml")
+}
+
+func TestControllerAutoStartBreaksLockedByOnSessionEnd(t *testing.T) {
+	h := newHarness(t, "start")
+
+	item := find(h.Menu(), "Auto-start Breaks")
+	assert.True(t, item.Checked)
+	assert.False(t, item.Enabled)
+	assert.Equal(t, "onSessionEnd: start", item.Detail)
 }
 
 func TestControllerMenuCustomDuration(t *testing.T) {

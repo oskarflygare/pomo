@@ -95,9 +95,9 @@ The menu bar shows a miniature of the progress bar with the phase and countdown 
 | Action      | Result                                                                    |
 | ----------- | ------------------------------------------------------------------------- |
 | Right-click | Start or pause the session (`Ctrl`-click works too)                       |
-| Click       | Open a menu with today's, weekly, streak, and all-time stats, skip/reset, and work/break lengths |
+| Click       | Open a menu with today's, weekly, streak, and all-time stats, skip/reset, work/break lengths, and auto-start breaks |
 
-Choosing a work or break length applies to the current session when it is the same type and is saved to the `duration` in your config file. Only that line changes, and comments are kept. When a session ends, pomo sends the usual notification and runs the `then` commands. With `onSessionEnd: start` the next session starts automatically. With any other value it waits for a right-click.
+Choosing a work or break length applies to the current session when it is the same type and is saved to the `duration` in your config file. Only that line changes, and comments are kept. When a session ends, pomo sends the usual notification and runs the `then` commands. With `onSessionEnd: start` the next session starts automatically. With any other value it waits for a right-click. To start breaks automatically while still starting work yourself, check **Auto-start Breaks** in the menu (saved as `autoStartBreaks` in your config file).
 
 The menu bar needs a build with cgo enabled, such as `go install` or [Build from Source](#build-from-source) on a Mac.
 
@@ -194,6 +194,10 @@ Example `pomo.yaml`:
 # action to take after session completion
 # options: "ask" | "start" | "quit"
 onSessionEnd: "ask"
+
+# start breaks automatically when a work session ends,
+# whatever onSessionEnd says (the end of a break still follows onSessionEnd)
+autoStartBreaks: false
 
 asciiArt:
   # use ASCII art for timer display
