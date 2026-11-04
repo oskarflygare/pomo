@@ -90,7 +90,7 @@ pomo stats              # View your productivity stats
 pomo menubar            # show the timer in the macOS menu bar
 ```
 
-The timer starts in the background, so you can close the terminal afterwards. Pass `--foreground` to keep it attached to the terminal (closing the terminal then quits it).
+The timer starts in the background, so you can close the terminal afterwards. Pass `--foreground` to keep it attached to the terminal (closing the terminal then quits it). Only one menu bar timer runs at a time; starting another reports the running one's pid.
 
 The menu bar shows a miniature of the progress bar with the phase and countdown (e.g. `Work 03:10`). It runs its own timer independently of terminal sessions, and both record to the same statistics database.
 

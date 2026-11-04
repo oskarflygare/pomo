@@ -22,22 +22,50 @@ a menu with today's stats and the work and break lengths, which are
 saved to your config file.
 
 It runs in the background, so closing the terminal does not stop it.
-Use --foreground to keep it attached to the terminal instead.`,
+Use --foreground to keep it attached to the terminal instead.
+Only one menu bar timer runs at a time.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		foreground, _ := cmd.Flags().GetBool("foreground")
-		if runtime.GOOS == "darwin" && !foreground && !startedByLaunchd() {
-			pid, err := detach("menubar", "--foreground")
-			if err != nil {
-				die(err)
-			}
-			fmt.Printf("menu bar timer running in the background (pid %d)\n", pid)
-			return
-		}
-
-		if err := menubar.Run(config.C); err != nil {
+		if err := runMenubar(foreground); err != nil {
 			die(err)
 		}
 	},
+}
+
+func runMenubar(foreground bool) error {
+	lockPath, err := menubar.DefaultLockPath()
+	if err != nil {
+		return err
+	}
+
+	lock, err := menubar.AcquireInstanceLock(lockPath)
+	var running *menubar.AlreadyRunningError
+	if errors.As(err, &running) {
+		// not a failure: exiting 0 also stops launchd's KeepAlive from
+		// retrying the login agent while another instance runs
+		fmt.Println(running.Error())
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if runtime.GOOS == "darwin" && !foreground && !startedByLaunchd() {
+		// hand the lock over to the detached instance, which takes it again
+		if err := lock.Release(); err != nil {
+			return err
+		}
+
+		pid, err := detach("menubar", "--foreground")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("menu bar timer running in the background (pid %d)\n", pid)
+		return nil
+	}
+
+	defer func() { _ = lock.Release() }()
+	return menubar.Run(config.C)
 }
 
 // startedByLaunchd reports whether launchd (pid 1) is the parent, as for the

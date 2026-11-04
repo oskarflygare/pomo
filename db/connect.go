@@ -19,7 +19,7 @@ const DBFile = config.AppName + ".db"
 // creates the necessary directories,
 // and performs migrations if needed.
 func Connect() (*sqlx.DB, error) {
-	dbDir, err := getDBDir()
+	dbDir, err := StateDir()
 	if err != nil {
 		log.Println("failed to get db path:", err)
 		return nil, err
@@ -67,8 +67,8 @@ func createSchema(db *sqlx.DB) error {
 	return nil
 }
 
-// returns the path to the db directory
-func getDBDir() (string, error) {
+// StateDir returns the directory holding pomo's user state, such as the database.
+func StateDir() (string, error) {
 	var dir string
 
 	// on Linux and macOS, use ~/.local/state
