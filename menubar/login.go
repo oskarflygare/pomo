@@ -94,6 +94,7 @@ var plistTemplate = template.Must(template.New("plist").Funcs(template.FuncMap{
 	<array>
 		<string>{{ xml .Executable }}</string>
 		<string>menubar</string>
+		<string>--foreground</string>
 	</array>
 	<key>WorkingDirectory</key>
 	<string>{{ xml .Home }}</string>
